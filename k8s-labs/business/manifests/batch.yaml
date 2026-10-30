@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: report-data
+  namespace: cec-k8s-practice
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: security-report
+  namespace: cec-k8s-practice
+spec:
+  schedule: "0 9 * * 1"
+  timeZone: Asia/Shanghai
+  suspend: true  # 默认暂停；先手动触发，避免后台不断创建任务
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 90
+      ttlSecondsAfterFinished: 600
+      template:
+        metadata:
+          labels: {training: cec-demo, app: security-report}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 10001
+            runAsNonRoot: true
+            fsGroup: 10001
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+          - name: report
+            image: python:3.12-alpine
+            imagePullPolicy: IfNotPresent
+            command: [python, /app/report.py]
+            env:
+            - {name: REPORT_DIR, value: /reports}
+            - {name: DATA_PATH, value: /data/operations.json}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+            resources:
+              requests: {cpu: 50m, memory: 32Mi}
+              limits: {cpu: 200m, memory: 64Mi}
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: {drop: [ALL]}
+            volumeMounts:
+            - {name: code, mountPath: /app, readOnly: true}
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: data, mountPath: /data, readOnly: true}
+            - {name: reports, mountPath: /reports}
+          volumes:
+          - name: code
+            configMap: {name: demo-code}
+          - name: config
+            configMap: {name: demo-config}
+          - name: data
+            configMap: {name: demo-data}
+          - name: reports
+            persistentVolumeClaim: {claimName: report-data}

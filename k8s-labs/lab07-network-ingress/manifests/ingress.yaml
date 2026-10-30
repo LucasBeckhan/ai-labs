@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: demo.local                  # 按域名分流（一台 Ingress 服务多个业务的关键）
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web                 # 流量最终给到 ClusterIP Service
+            port:
+              number: 80

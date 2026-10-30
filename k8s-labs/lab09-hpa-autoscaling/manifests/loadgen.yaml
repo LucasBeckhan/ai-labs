@@ -1,0 +1,20 @@
+# 压测器：4 个副本死循环打服务 —— 把 CPU 打满触发扩容
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+spec:
+  replicas: 4
+  selector:
+    matchLabels: {app: loadgen}
+  template:
+    metadata:
+      labels: {app: loadgen}
+    spec:
+      containers:
+      - name: bomb
+        image: curlimages/curl:8.10.1
+        command: ["sh", "-c", "while true; do curl -s http://calc > /dev/null; done"]
+        resources:
+          requests: {cpu: 100m, memory: 32Mi}
+          limits:   {cpu: 200m, memory: 64Mi}

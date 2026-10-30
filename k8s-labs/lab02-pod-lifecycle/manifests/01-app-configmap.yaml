@@ -1,0 +1,38 @@
+# 应用代码通过 ConfigMap 挂载 —— 观察"改配置=改代码挂载"这种 K8s 常见模式
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webapp-code
+data:
+  server.py: |
+    import signal, time, sys, threading, http.server
+
+    ready = False   # 模拟应用启动需要时间（连数据库、加载缓存...）
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/healthz" and ready:
+                self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+            elif self.path == "/ready" and ready:
+                self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+            else:
+                self.send_response(503); self.end_headers(); self.wfile.write(b"not ready")
+        def log_message(self, *a): pass
+
+    def handle_term(sig, frame):
+        print(">>> SIGTERM received, cleaning up (takes 3s)...", flush=True)
+        time.sleep(3)                       # 模拟：刷缓存/提交 offset/关闭连接池
+        print(">>> cleanup done, exiting", flush=True)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_term)
+
+    def late_ready():
+        global ready
+        time.sleep(10)                      # 模拟 10 秒的慢启动
+        ready = True
+        print(">>> now READY", flush=True)
+    threading.Thread(target=late_ready, daemon=True).start()
+
+    print(">>> serving on 8000", flush=True)
+    http.server.HTTPServer(("0.0.0.0", 8000), Handler).serve_forever()

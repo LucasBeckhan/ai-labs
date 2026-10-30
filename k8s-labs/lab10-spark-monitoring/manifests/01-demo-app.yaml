@@ -1,0 +1,53 @@
+# 带自报指标的应用：被 Prometheus 通过注解自动发现
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metrics-app-code
+data:
+  server.py: |
+    import http.server, random
+    counter = 0
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            global counter
+            if self.path == "/metrics":
+                counter += random.randint(0, 3)
+                body = ("# HELP demo_requests_total total requests served\n"
+                        "# TYPE demo_requests_total counter\n"
+                        f"demo_requests_total {counter}\n").encode()
+                # Prometheus v3 严格要求 metrics 端点返回 Content-Type，否则拒绝抓取
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.end_headers(); self.wfile.write(body)
+            else:
+                self.send_response(200); self.end_headers(); self.wfile.write(b"hello")
+        def log_message(self, *a): pass
+    http.server.HTTPServer(('', 8000), H).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: metrics-app}
+  template:
+    metadata:
+      labels: {app: metrics-app}
+      annotations:                     # Prometheus 自动发现的"开关"，约定俗成的注解名
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: app
+        image: python:3.12-alpine
+        command: ["python", "/app/server.py"]
+        ports: [{containerPort: 8000}]
+        volumeMounts: [{name: code, mountPath: /app}]
+        resources:
+          requests: {cpu: 50m, memory: 32Mi}
+      volumes:
+      - name: code
+        configMap: {name: metrics-app-code}

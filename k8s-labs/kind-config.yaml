@@ -1,0 +1,13 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: labs
+nodes:
+- role: control-plane
+  image: kindest/node:v1.31.4
+  extraPortMappings:
+  - containerPort: 30080   # 供 NodePort / Ingress 实验：localhost:8080 -> 集群 30080
+    hostPort: 8080
+    protocol: TCP
+  - containerPort: 32443   # 供 HTTPS / Ingress 实验：localhost:8443 -> 集群 32443
+    hostPort: 8443
+    protocol: TCP

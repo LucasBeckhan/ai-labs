@@ -1,0 +1,68 @@
+# 排障急救室：一次部署 5 个"病人"，每个都是生产高频故障
+# 注意：本文件故意包含错误，用于练习排查，不要"修复"后再 apply
+---
+# 病人 1：ImagePullBackOff —— 镜像 tag 打错
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p1-bad-tag
+  labels: {patient: "1"}
+spec:
+  containers:
+  - name: app
+    image: nginx:1.27-typo-not-exist
+---
+# 病人 2：CrashLoopBackOff —— 启动即崩溃
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p2-crashloop
+  labels: {patient: "2"}
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "echo starting...; sleep 2; exit 1"]   # 模拟启动后崩溃
+---
+# 病人 3：Pending —— requests 超出节点容量
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p3-too-big
+  labels: {patient: "3"}
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sleep", "3600"]
+    resources:
+      requests: {cpu: "200", memory: 300Gi}
+---
+# 病人 4：CreateContainerConfigError —— 引用了不存在的 ConfigMap
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p4-missing-config
+  labels: {patient: "4"}
+spec:
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sleep", "3600"]
+    envFrom:
+    - configMapRef: {name: i-do-not-exist}
+---
+# 病人 5：容器健康但探针配错路径 → liveness 反复重启
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p5-bad-probe
+  labels: {patient: "5"}
+spec:
+  containers:
+  - name: app
+    image: nginx:1.27
+    livenessProbe:                       # nginx 没有 /healthz，404 → 探针失败 → 重启循环
+      httpGet: {path: /healthz, port: 80}
+      periodSeconds: 5
+      failureThreshold: 2

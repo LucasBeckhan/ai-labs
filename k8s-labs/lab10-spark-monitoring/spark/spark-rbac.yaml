@@ -1,0 +1,33 @@
+# Spark driver 要代表用户去创建 executor Pod —— 必须给它"身份 + 权限"
+# 这是理解"K8s 里一切组件都是 API 客户端"的关键一课
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spark
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-role
+rules:
+- apiGroups: [""]
+  resources: ["pods"]                       # driver 创建/删除 executor Pod（Spark 3.5 还会 patch）
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods/log"]                   # 查看 executor 日志
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["services", "configmaps"]     # driver service 与配置（提交时会 PATCH service）
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-binding
+subjects:
+- kind: ServiceAccount
+  name: spark
+roleRef:
+  kind: Role
+  name: spark-role
+  apiGroup: rbac.authorization.k8s.io

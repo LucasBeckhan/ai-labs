@@ -1,0 +1,55 @@
+# 被伸缩的应用：一个 CPU 密集的 python 服务
+# /metrics 不需要 —— HPA 用的是 metrics-server 采集的容器 CPU，不是应用自报
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calc
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: calc}
+  template:
+    metadata:
+      labels: {app: calc}
+    spec:
+      containers:
+      - name: calc
+        image: python:3.12-alpine
+        command: ["python", "-c", "import http.server, time\nclass H(http.server.BaseHTTPRequestHandler):\n    def do_GET(self):\n        t = time.time() + 0.15        # 每个请求烧 150ms CPU，制造可伸缩的负载\n        while time.time() < t: pass\n        self.send_response(200); self.end_headers(); self.wfile.write(b'ok')\n    def log_message(self, *a): pass\nhttp.server.HTTPServer(('', 8000), H).serve_forever()"]
+        ports: [{containerPort: 8000}]
+        resources:
+          requests: {cpu: 100m, memory: 64Mi}
+          limits:   {cpu: 500m, memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: calc
+spec:
+  selector: {app: calc}
+  ports: [{port: 80, targetPort: 8000}]
+---
+# HPA：目标 CPU 50%，2~8 副本
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: calc
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: calc
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50     # 指标 = 实际CPU用量 / requests(100m)，limit 不参与计算
+  behavior:                        # 扩缩容节奏（v2 的精髓）
+    scaleUp:
+      stabilizationWindowSeconds: 0     # 扩容不等待：流量来了立刻上
+    scaleDown:
+      stabilizationWindowSeconds: 60    # 缩容观察 60 秒：防止流量抖动导致震荡

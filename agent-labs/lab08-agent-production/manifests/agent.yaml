@@ -1,0 +1,44 @@
+# Agent 服务上 K8s：与 llmops-labs/lab06 的 RAG 服务同款模式（hostNetwork 访问宿主机网关）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: agent}
+  template:
+    metadata:
+      labels: {app: agent}
+      annotations:                      # Prometheus 注解发现（k8s-labs Lab10 机制）
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      hostNetwork: true                 # 经 host.docker.internal 访问宿主机 LiteLLM 网关
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: agent
+        image: agent-service:v1
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: GATEWAY
+          value: http://host.docker.internal:4000
+        - name: MODEL
+          value: qwen-small
+        ports: [{containerPort: 8000}]
+        readinessProbe: {httpGet: {path: /metrics, port: 8000}, periodSeconds: 5}
+        resources:
+          requests: {cpu: 100m, memory: 128Mi}
+          limits:   {cpu: 500m, memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent
+spec:
+  type: NodePort
+  selector: {app: agent}
+  ports:
+  - port: 8000
+    nodePort: 30081    # 注意别和 RAG 服务(30080)抢端口——k8s-labs Lab07 的教训

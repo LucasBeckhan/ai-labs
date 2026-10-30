@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: report-restore
+  namespace: cec-k8s-practice
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: archive-restore
+  namespace: cec-k8s-practice
+  labels: {training: cec-demo}
+spec:
+  automountServiceAccountToken: false
+  securityContext: {runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001}
+  containers:
+  - name: restore
+    image: python:3.12-alpine
+    command: [sleep, "3600"]
+    resources:
+      requests: {cpu: 20m, memory: 16Mi}
+      limits: {cpu: 100m, memory: 32Mi}
+    volumeMounts:
+    - {name: reports, mountPath: /restore}
+  volumes:
+  - name: reports
+    persistentVolumeClaim: {claimName: report-restore}

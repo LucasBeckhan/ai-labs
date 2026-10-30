@@ -1,0 +1,66 @@
+# ---- Secret：此处 stringData 是明文实验密码；Secret 不等于加密，真实凭据不可提交仓库----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+type: Opaque
+stringData:
+  password: "lab4pass"
+
+# ---- Headless Service：给每个 Pod 稳定的 DNS 名字（mysql-0.mysql）----
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  clusterIP: None            # None = Headless，不做负载均衡，直接解析到各 Pod
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+
+# ---- StatefulSet ----
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: mysql         # 必须指向 Headless Service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: mysql-secret, key: password}
+        volumeMounts:
+        - name: data         # 对应下面的 volumeClaimTemplates
+          mountPath: /var/lib/mysql
+        readinessProbe:
+          exec: {command: ["mysqladmin", "ping", "-uroot", "-plab4pass"]}
+          initialDelaySeconds: 20
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 250m, memory: 512Mi}
+          limits:   {cpu: "1",  memory: 1Gi}
+  volumeClaimTemplates:      # 每个副本自动创建一个独立 PVC
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 2Gi

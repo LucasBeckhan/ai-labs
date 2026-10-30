@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp
+  labels:
+    app: webapp
+spec:
+  terminationGracePeriodSeconds: 30   # 终止宽限期，包含 preStop 耗时
+  containers:
+  - name: webapp
+    image: python:3.12-alpine
+    command: ["python", "/app/server.py"]
+    ports:
+    - containerPort: 8000
+    volumeMounts:
+    - name: code
+      mountPath: /app
+    resources:
+      requests: {cpu: 100m, memory: 64Mi}
+      limits:   {cpu: 500m, memory: 128Mi}
+    startupProbe:                     # 启动探针：通过之前，liveness/readiness 都不生效
+      httpGet: {path: /healthz, port: 8000}
+      periodSeconds: 2                # 每 2 秒试一次
+      failureThreshold: 30            # 最多容忍 30 次 → 最多等 60 秒启动
+    readinessProbe:                   # 就绪探针：不过就不进 Service 后端池（不接流量）
+      httpGet: {path: /ready, port: 8000}
+      periodSeconds: 5
+    livenessProbe:                    # 存活探针：不过就重启容器
+      httpGet: {path: /healthz, port: 8000}
+      periodSeconds: 10
+    lifecycle:
+      preStop:                        # 收到删除请求后、SIGTERM 之前执行
+        exec: {command: ["sh", "-c", "sleep 2 && echo preStop done"]}
+  volumes:
+  - name: code
+    configMap:
+      name: webapp-code

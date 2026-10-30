@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-load
+  namespace: cec-k8s-practice
+  labels: {training: cec-demo}
+spec:
+  restartPolicy: Never
+  activeDeadlineSeconds: 130
+  automountServiceAccountToken: false
+  containers:
+  - name: load
+    image: python:3.12-alpine
+    command:
+    - python
+    - -c
+    - |
+      import threading,time,urllib.request
+      end=time.monotonic()+120
+      def run():
+        while time.monotonic()<end:
+          try:
+            with urllib.request.urlopen('http://monitor-api/work?ms=80',timeout=3) as r: r.read()
+          except Exception: time.sleep(.2)
+      threads=[threading.Thread(target=run) for _ in range(6)]
+      for t in threads: t.start()
+      for t in threads: t.join()
+    resources:
+      requests: {cpu: 50m, memory: 32Mi}
+      limits: {cpu: 200m, memory: 64Mi}

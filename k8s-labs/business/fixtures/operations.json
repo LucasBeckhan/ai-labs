@@ -1,0 +1,17 @@
+{
+  "notice": "虚构云网安训练数据，不是中企通信实际客户、接口、服务等级或事件。",
+  "as_of": "2026-10-28T02:00:00Z",
+  "circuits": [
+    {"tenant_id":"demo-a","circuit_id":"C-A01","site":"上海模拟分支","loss_pct":8.5,"latency_ms":120},
+    {"tenant_id":"demo-a","circuit_id":"C-A02","site":"苏州模拟分支","loss_pct":0.0,"latency_ms":12},
+    {"tenant_id":"demo-b","circuit_id":"C-B01","site":"北京模拟分支","loss_pct":0.1,"latency_ms":18}
+  ],
+  "alerts": [
+    {"tenant_id":"demo-a","event_id":"E-001","severity":"high","occurred_at":"2026-10-28T01:50:00Z"},
+    {"tenant_id":"demo-a","event_id":"E-001","severity":"high","occurred_at":"2026-10-28T01:50:00Z"},
+    {"tenant_id":"demo-a","event_id":"E-002","severity":"medium","occurred_at":"2026-10-28T01:52:00Z"},
+    {"tenant_id":"demo-a","event_id":"E-003","severity":"low","occurred_at":"2026-10-27T23:59:00Z"},
+    {"tenant_id":"demo-a","event_id":"E-004","severity":"low","occurred_at":"2026-10-28T02:00:00Z"},
+    {"tenant_id":"demo-b","event_id":"E-101","severity":"high","occurred_at":"2026-10-28T01:55:00Z"}
+  ]
+}

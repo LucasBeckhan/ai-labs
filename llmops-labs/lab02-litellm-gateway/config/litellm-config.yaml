@@ -1,0 +1,26 @@
+# LiteLLM 网关配置：把同一个本地模型包装成"两个不同定位的模型别名"
+# 生产含义：后端模型可以随时换（加个条目就行），应用只认别名 —— 这是解耦的核心
+model_list:
+  - model_name: qwen-small           # 默认定位：分类/抽取/SQL，温度低
+    litellm_params:
+      model: ollama/qwen2.5:0.5b-instruct
+      api_base: http://localhost:11434
+      temperature: 0.1
+
+  - model_name: qwen-creative        # 发散定位：文案/头脑风暴
+    litellm_params:
+      model: ollama/qwen2.5:0.5b-instruct
+      api_base: http://localhost:11434
+      temperature: 1.0
+
+  - model_name: qwen-strong          # 强模型定位：SQL/推理，小模型搞不定时"升级"到这里
+    litellm_params:
+      model: ollama/qwen2.5:1.5b-instruct
+      api_base: http://localhost:11434
+      temperature: 0
+
+litellm_settings:
+  drop_params: true                  # 应用带了后端不支持的参数时不报错，直接丢弃
+
+general_settings:
+  master_key: sk-labs-master         # 管理员 key：所有请求都要带，模拟生产网关的鉴权

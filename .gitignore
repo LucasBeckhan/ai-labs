@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# SQLite databases (generated)
+*.db
+
+# Coverage
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Secrets
+*.pem
+*.key
+
+# Large binaries and generated data
+*.tgz
+*.tar.gz
+*.zip
+chroma_db/
+
+# Hack/build artifacts (keep Dockerfile/entrypoint.sh)
+k8s-labs/hack/spark-image/*.tgz
+k8s-labs/hack/spark-image/tini

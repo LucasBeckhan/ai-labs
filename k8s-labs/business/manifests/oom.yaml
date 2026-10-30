@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: consumer-oom
+  namespace: cec-k8s-practice
+  labels: {training: cec-demo}
+spec:
+  restartPolicy: Never
+  activeDeadlineSeconds: 60
+  automountServiceAccountToken: false
+  containers:
+  - name: consumer
+    image: python:3.12-alpine
+    command: [python, -u, -c, 'import time; chunks=[]; exec("while True:\n chunks.append(bytearray(4*1024*1024))\n print(len(chunks)*4, flush=True)\n time.sleep(0.1)")']
+    resources:
+      requests: {cpu: 50m, memory: 32Mi}
+      limits: {cpu: 200m, memory: 64Mi}

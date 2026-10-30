@@ -1,0 +1,52 @@
+# ---- 后端：3 副本 nginx ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        resources:
+          requests: {cpu: 50m, memory: 32Mi}
+---
+# ---- ClusterIP Service：集群内虚拟 IP + 负载均衡 ----
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  type: ClusterIP
+  selector: {app: web}
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# ---- NodePort Service：每个节点开一个端口，集群外可达 ----
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-nodeport
+spec:
+  type: NodePort
+  selector: {app: web}
+  ports:
+  - port: 80
+    nodePort: 30080    # kind-config 已把本机 8080 映射到节点的 30080
+---
+# ---- 错误示范：selector 的 label 和 Pod 对不上，用于排障实验 ----
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-broken
+spec:
+  selector: {app: web-typo}   # 注意：没有 Pod 有这个 label
+  ports:
+  - port: 80

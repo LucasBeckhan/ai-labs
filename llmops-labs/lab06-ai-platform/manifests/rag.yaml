@@ -1,0 +1,45 @@
+# RAG 服务上 K8s：hostNetwork 让 Pod 共享节点网络栈（经 host.docker.internal 访问宿主机模型）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: rag}
+  template:
+    metadata:
+      labels: {app: rag}
+      annotations:                      # Prometheus 注解发现（k8s-labs Lab 10 的机制）
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      hostNetwork: true                 # 共享节点网络：pod 进程直接用节点端口 8000
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: rag
+        image: rag-service:v1
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: OLLAMA_URL              # 模型在宿主机（Mac 上的 Ollama）
+          value: http://host.docker.internal:11434
+        - {name: EMBED_MODEL, value: bge-m3}
+        - {name: GEN_MODEL,  value: qwen2.5:0.5b-instruct}
+        - {name: TOP_K,      value: "6"}   # Lab 04 评估结论直接变成配置
+        ports: [{containerPort: 8000}]
+        readinessProbe: {httpGet: {path: /metrics, port: 8000}, periodSeconds: 5}
+        resources:
+          requests: {cpu: 100m, memory: 256Mi}
+          limits:   {cpu: 500m, memory: 512Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag
+spec:
+  type: NodePort                        # kind-config 已把本机 8080 映射到节点 30080
+  selector: {app: rag}
+  ports:
+  - port: 8000
+    nodePort: 30080
